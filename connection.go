@@ -511,7 +511,11 @@ var newClientConnection = func(
 
 func (c *Conn) preSetup() {
 	c.largestRcvdAppData = protocol.InvalidPacketNumber
-	c.initialStream = newInitialCryptoStream(c.perspective == protocol.PerspectiveClient)
+	// b4x fork: no ClientHello scrambling on uTLS-fingerprinted connections
+	// (the scrambling's SNI/ECH parser is tuned to the crypto/tls hello and
+	// can deadlock the stream for browser-preset hellos; the fingerprint is
+	// the anti-DPI mechanism here, scrambling is redundant).
+	c.initialStream = newInitialCryptoStreamWithScrambling(c.perspective == protocol.PerspectiveClient, c.config.UTLSClientHelloID == nil)
 	c.handshakeStream = newCryptoStream()
 	c.sendQueue = newSendQueue(c.conn)
 	c.retransmissionQueue = newRetransmissionQueue()

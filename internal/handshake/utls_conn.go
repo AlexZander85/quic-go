@@ -39,6 +39,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 
 	utls "github.com/refraction-networking/utls"
 
@@ -79,6 +80,22 @@ func newUTLSClientConn(tlsConf *tls.Config, id utls.ClientHelloID, logger utils.
 		if sv, ok := ext.(*utls.SupportedVersionsExtension); ok {
 			sv.Versions = []uint16{utls.VersionTLS13}
 		}
+	}
+
+	// RFC 6066: literal IP addresses are never sent in SNI — the vanilla
+	// crypto/tls client omits the extension for them, and a preset hello
+	// would otherwise carry an IP-literal SNI (the wire difference made
+	// strict servers drop the ClientHello silently).
+	if net.ParseIP(ucfg.ServerName) != nil {
+		ucfg.ServerName = ""
+		filtered := make([]utls.TLSExtension, 0, len(spec.Extensions))
+		for _, ext := range spec.Extensions {
+			if _, ok := ext.(*utls.SNIExtension); ok {
+				continue
+			}
+			filtered = append(filtered, ext)
+		}
+		spec.Extensions = filtered
 	}
 
 	uq := utls.UQUICClient(&utls.QUICConfig{TLSConfig: ucfg}, utls.HelloCustom)

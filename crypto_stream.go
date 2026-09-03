@@ -112,8 +112,16 @@ type initialCryptoStream struct {
 }
 
 func newInitialCryptoStream(isClient bool) *initialCryptoStream {
+	return newInitialCryptoStreamWithScrambling(isClient, true)
+}
+
+// newInitialCryptoStreamWithScrambling allows the caller to disable the
+// ClientHello scrambling (b4x fork extension): for uTLS-fingerprinted
+// connections the scrambling's SNI/ECH search must not gate the hello
+// (browser presets and IP-SNI-free hellos can leave HasData false forever).
+func newInitialCryptoStreamWithScrambling(isClient bool, allowScrambling bool) *initialCryptoStream {
 	var scramble bool
-	if isClient {
+	if isClient && allowScrambling {
 		disabled, err := strconv.ParseBool(os.Getenv(disableClientHelloScramblingEnv))
 		scramble = err != nil || !disabled
 	}
