@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	utls "github.com/refraction-networking/utls"
+
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/qlogwriter"
 	"github.com/quic-go/quic-go/quicvarint"
@@ -128,6 +130,9 @@ func configWithNonZeroNonFunctionFields(t *testing.T) *Config {
 			f.Set(reflect.ValueOf(true))
 		case "EnableStreamResetPartialDelivery":
 			f.Set(reflect.ValueOf(true))
+		case "UTLSClientHelloID":
+			id := utls.HelloFirefox_Auto
+			f.Set(reflect.ValueOf(&id))
 		default:
 			t.Fatalf("all fields must be accounted for, but saw unknown field %q", fn)
 		}

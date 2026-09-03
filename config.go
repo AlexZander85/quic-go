@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	utls "github.com/refraction-networking/utls"
+
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/quicvarint"
 )
@@ -23,6 +25,13 @@ func (c *Config) maxRetryTokenAge() time.Duration {
 }
 
 func validateConfig(config *Config) error {
+	if config != nil && config.UTLSClientHelloID != nil {
+		// Fail the dial early on an unusable fingerprint instead of
+		// silently degrading inside the handshake.
+		if _, err := utls.UTLSIdToSpec(*config.UTLSClientHelloID); err != nil {
+			return fmt.Errorf("quic: invalid UTLSClientHelloID: %w", err)
+		}
+	}
 	if config == nil {
 		return nil
 	}
@@ -124,6 +133,7 @@ func populateConfig(config *Config) *Config {
 		DisablePathMTUDiscovery:          config.DisablePathMTUDiscovery,
 		EnableStreamResetPartialDelivery: config.EnableStreamResetPartialDelivery,
 		Allow0RTT:                        config.Allow0RTT,
+		UTLSClientHelloID:                config.UTLSClientHelloID,
 		Tracer:                           config.Tracer,
 	}
 }

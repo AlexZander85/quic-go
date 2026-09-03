@@ -2,8 +2,10 @@ package quic
 
 import (
 	"context"
+
 	"crypto/tls"
 	"errors"
+	utls "github.com/refraction-networking/utls"
 	"net"
 	"slices"
 	"time"
@@ -173,6 +175,12 @@ type Config struct {
 	// This allows the sending of QUIC packets that fully utilize the available MTU of the path.
 	// Path MTU discovery is only available on systems that allow setting of the Don't Fragment (DF) bit.
 	DisablePathMTUDiscovery bool
+	// UTLSClientHelloID (b4x fork extension): when set, the client TLS
+	// handshake emits a uTLS ClientHello with the given browser fingerprint
+	// instead of the crypto/tls one. Verification semantics of tls.Config
+	// are preserved; session resumption is disabled on this path.
+	// nil (default) keeps the vanilla crypto/tls handshake.
+	UTLSClientHelloID *utls.ClientHelloID
 	// Allow0RTT allows the application to decide if a 0-RTT connection attempt should be accepted.
 	// Only valid for the server.
 	Allow0RTT bool

@@ -10,6 +10,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	utls "github.com/refraction-networking/utls"
+
 	"github.com/quic-go/quic-go/internal/protocol"
 	"github.com/quic-go/quic-go/internal/qerr"
 	"github.com/quic-go/quic-go/internal/utils"
@@ -27,7 +29,7 @@ const clientSessionStateRevision = 5
 
 type cryptoSetup struct {
 	tlsConf *tls.Config
-	conn    *tls.QUICConn
+	conn    quicConnIface
 
 	events []Event
 
@@ -76,6 +78,7 @@ func NewCryptoSetupClient(
 	qlogger qlogwriter.Recorder,
 	logger utils.Logger,
 	version protocol.Version,
+	utlsID *utls.ClientHelloID,
 ) CryptoSetup {
 	cs := newCryptoSetup(
 		connID,
@@ -91,10 +94,23 @@ func NewCryptoSetupClient(
 	cs.tlsConf = tlsConf
 	cs.allow0RTT = enable0RTT
 
-	cs.conn = tls.QUICClient(&tls.QUICConfig{
-		TLSConfig:           tlsConf,
-		EnableSessionEvents: true,
-	})
+	if utlsID != nil {
+		// b4x fork: fingerprinted ClientHello (uTLS). On a spec error,
+		// fail open to the vanilla handshake — connectivity first, the
+		// masquerade layer reports it upstream.
+		uc, err := newUTLSClientConn(tlsConf, *utlsID, logger)
+		if err != nil {
+			logger.Errorf("utls handshake setup failed, falling back to crypto/tls: %v", err)
+		} else {
+			cs.conn = uc
+		}
+	}
+	if cs.conn == nil {
+		cs.conn = tls.QUICClient(&tls.QUICConfig{
+			TLSConfig:           tlsConf,
+			EnableSessionEvents: true,
+		})
+	}
 	cs.conn.SetTransportParameters(cs.ourParams.Marshal(protocol.PerspectiveClient))
 
 	return cs
